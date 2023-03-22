@@ -31,8 +31,6 @@
     "@types/jsonwebtoken": "^9.0.1",
     "@types/nodemailer": "^6.4.7",
     "@types/otp-generator": "^4.0.0",
-    "@types/passport": "^1.0.11",
-    "@types/passport-google-oauth20": "^2.0.11",
     "tslint": "^5.12.1"
   },
   "main": "index.js"

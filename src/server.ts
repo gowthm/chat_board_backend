@@ -2,7 +2,6 @@ import express from 'express'
 import mongoose from 'mongoose';
 import compression from 'compression'
 import cors from 'cors'
-import passport from 'passport';
 import { MONGODB_URI } from './util/secrets'
 
 import { UserRoutes } from './routes/user.routes'
@@ -34,14 +33,6 @@ class Server {
     
    // this.app.use(session())
 
-   // this.app.use(express.session({ secret: 'SECRET' })); // session secret
-  this.app.use(passport.initialize());
-  this.app.use(passport.session());
-  this.app.use(session({
-    resave: false,
-    saveUninitialized: true,
-    secret: 'bla bla bla' 
-  }));
   }
 
   private mongo() {
