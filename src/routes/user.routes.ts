@@ -13,8 +13,5 @@ export class UserRoutes {
   routes() {
     this.router.post('/register', this.userController.registerUser)
     this.router.post('/login', this.userController.authenticateUser)
-    this.router.post('/refreshtoken', this.userController.refreshToken)
-    this.router.put('/updateuser/:id', authMiddleware, this.userController.updateUserDetails)
-    this.router.delete(`/user/:id`, authMiddleware, this.userController.deleteUser);
   }
 }
