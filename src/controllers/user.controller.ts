@@ -4,105 +4,164 @@ import bcryptjs from 'bcryptjs';
 import { Message } from '../models/message';
 import { JWT_SECRET, REFRESH_SECRET } from '../util/secrets'
 import * as jwt from 'jsonwebtoken'
-
+import authMiddleware from '../middleware/auth.middleware';
 
 export class UserController {
+
   // Register
+
   registerUser = async (req: any, res: Response) => {
-    return new Promise(async(resolve, rejects) => {
+    return new Promise(async (resolve, rejects) => {
       const phone = req.body.phone;
       await User.findOne({ phone })
-      .then( async(userExist)=>{
-        const hashedPassword = await bcryptjs.hash(req.body.password, 12)
-        if (userExist) { 
-          req.body.password = hashedPassword
-          const userUpdate = await User.updateOne({_id:userExist.id},req.body)
-          resolve({ message: "User created successfully", status:true  })
-        }else{
-          const user = await User.create({
-            email: req.body.email,
-            password: hashedPassword,
-            name: req.body.name,
-            phone: req.body.phone,
-            age: req.body.age, 
-          });
-          resolve({message: "User created successfully", status:true  })
-        }
-      })
+        .then(async (userExist:any) => {
+          const hashedPassword = await bcryptjs.hash(req.body.password, 12)
+          if (userExist) {
+            req.body.password = hashedPassword
+            const userUpdate = await User.updateOne({ _id: userExist.id }, req.body)
+            resolve(res.redirect('/'))
+          } else {
+            const user = await User.create({
+              email: req.body.email,
+              password: hashedPassword,
+              name: req.body.name,
+              phone: req.body.phone,
+              age: req.body.age,
+            });
+            resolve(res.redirect('/'))
+          }
+        })
     })
   }
 
   // Login
+
   authenticateUser = async (req: any, res: Response) => {
+
     return new Promise(async (resolve, reject) => {
       await User.findOne({ email: req.body.email })
-      .then(async (user) => {
-        const authorized = await bcryptjs.compare(req.body.password, user.password)
-        if (!authorized) {
-          resolve({ message: 'email address or password are incorrect', status: false })
-        } else {
-          const accessToken = jwt.sign({
+        .then(async (user:any) => {
+          const authorized = await bcryptjs.compare(req.body.password, user.password)
+          if (!authorized) {
+            resolve(res.redirect('/sign_up'))
+          } else {
+            let messageData: any = await Message.aggregate([
+              {
+                $lookup: {
+                  let: { 'userId': { '$toObjectId': '$user_id' } },
+                  from: 'users',
+                  pipeline: [
+                    {
+                      $match: { $expr: { $eq: ['$_id', '$$userId'] } }
+                    }
+                  ],
+                  as: 'userData'
+                }
+              }
+            ]).sort({ created_at: -1 });
+            const accessToken = jwt.sign({
               id: user.id
-          }, JWT_SECRET, {expiresIn: 60 * 60});
-    
-          const refreshToken = jwt.sign({id: user.id
-          }, REFRESH_SECRET, {expiresIn: 24 * 60 * 60 })
-    
-          res.cookie('accessToken', accessToken, {
+            }, JWT_SECRET, { expiresIn: 60 * 60 });
+
+            const refreshToken = jwt.sign({
+              id: user.id
+            }, REFRESH_SECRET, { expiresIn: 24 * 60 * 60 })
+
+            res.cookie('accessToken', accessToken, {
               httpOnly: true,
               maxAge: 24 * 60 * 60 * 1000 //equivalent to 1 day
-          });
-    
-          res.cookie('refreshToken', refreshToken, {
+            });
+
+            res.cookie('refreshToken', refreshToken, {
               httpOnly: true,
               maxAge: 7 * 24 * 60 * 60 * 1000 //equivalent to 7 days
-          })
-          resolve({
-            data : user,
-            accessToken:accessToken,
-            message: 'Login Successfully',
-            status:true
+            })
+            resolve(
+              res.render('message.ejs', { data: messageData, user: user })
+            )
+          }
         })
-        }
-      })
-      .catch((err) => reject({ message: "Invalid Credentials", status:false  }));  
+        .catch((err:any) => { res.redirect('/sign_up') })
     });
   }
 
-  sendMessage = async(req: any, res: Response) => {
-    return new Promise(async (resolve, rejects) => {
-      await Message.create({
-        message: req.body.message,
-        user_id: req.user._id,
-        created_at: new Date
-      }).then(res =>{
-        resolve({ message: 'Message sent successfully', status: true})
-      }).catch(err => {
-        rejects({message: 'Something went wrong', status: false})
-      })
-    })
-  }
+  // Send Message
 
-  getMessageDetails = async(req: any, res: Response) => {
-    return new Promise(async (resolve, rejects) => {
-      await Message.aggregate([
-        {
-          $lookup:  {
-            from: 'message',
-            localField: 'user_id',
-            foreignField: '_id',
-            as: 'userData'
-          }
+  messageUpdate = async (req: any, res: Response) => {
+    return new Promise(async (resolve, reject) => {
+      let cookies: any = {};
+      const cookiesArray = req.headers.cookie.split(';');
+      cookiesArray.forEach((cookie: any) => {
+        const [key, value] = cookie.trim().split('=');
+        cookies[key] = value;
+      });
+
+      await authMiddleware(cookies['accessToken']).then(async (userRes) => {
+        if (userRes) {
+          await Message.create({
+            message: req.body.comment,
+            user_id: userRes._id,
+            created_at: new Date().toLocaleString(),
+          })
+
+          let messageData: any = await Message.aggregate([
+            {
+              $lookup: {
+                let: { 'userId': { '$toObjectId': '$user_id' } },
+                from: 'users',
+                pipeline: [
+                  {
+                    $match: { $expr: { $eq: ['$_id', '$$userId'] } }
+                  }
+                ],
+                as: 'userData'
+              }
+            }
+          ]).sort({ created_at: -1 });
+          res.render('message.ejs', { data: messageData, user: userRes })
+
         }
-      ]).then(res =>{
-        resolve({data: res,  message: 'Message sent successfully', status: true})
       }).catch(err => {
-        rejects({message: 'Something went wrong', status: false})
+        console.log(err)
       })
     })
   }
 
+  // Get All Message 
 
+  getMessageDetails = async (req: any, res: Response) => {
+    return new Promise(async (resolve, rejects) => {
 
+      let cookies: any = {};
 
+      const cookiesArray = req.headers.cookie.split(';');
+
+      cookiesArray.forEach((cookie: any) => {
+        const [key, value] = cookie.trim().split('=');
+        cookies[key] = value;
+      });
+
+      await authMiddleware(cookies['accessToken']).then(async (userRes) => {
+
+        await Message.aggregate([
+          {
+            $lookup: {
+              let: { 'userId': { '$toObjectId': '$user_id' } },
+              from: 'users',
+              pipeline: [
+                {
+                  $match: { $expr: { $eq: ['$_id', '$$userId'] } }
+                }
+              ],
+              as: 'userData'
+            }
+          }
+        ]).sort({ created_at: -1 }).then((resData:any) => {
+          res.render('message.ejs', { data: resData, user: userRes })
+        }).catch((err:any) => {
+          rejects({ message: 'Something went wrong', status: false })
+        })
+      })
+    })
+  }
 }

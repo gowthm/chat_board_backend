@@ -13,5 +13,7 @@ export class UserRoutes {
   routes() {
     this.router.post('/register', this.userController.registerUser)
     this.router.post('/login', this.userController.authenticateUser)
+    this.router.post('/message', this.userController.messageUpdate)
+    this.router.get('/get_message', this.userController.getMessageDetails)
   }
 }

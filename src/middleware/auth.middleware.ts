@@ -3,29 +3,25 @@ import * as jwt from 'jsonwebtoken'
 import { User } from '../models/user'
 import { JWT_SECRET } from '../util/secrets'
 
-const authMiddleware = async (req: any, res: Response, next: NextFunction) => {
+const authMiddleware = async (token: any) => {
+  let userData:any;
   try {
-    const Authorization = req.header('Authorization') ? req.header('Authorization').split('Bearer ')[1] : null;
+    const Authorization = token;
     if (Authorization) {
       const userTokenData: any = jwt.verify(Authorization, JWT_SECRET);
       await getUserDetails(userTokenData).then((userDetails) => {
-        if (userDetails) {
-            req.user = userDetails;
-            next();
-          } else {
-            next(HttpException(res, 400, 'Invalid Credentials'));
-          }
+        userData =  userDetails;
       }).catch((err) => {
-        next(HttpException(res, 500, err));
+        userData = 'User Not Found'
       })  
     } else {
-      next(HttpException(res, 404, 'Authentication token missing'));
+      userData =  'Authentication token missing'
     }
   } 
   catch (error) {
-    console.log("error error",error)
-    next(HttpException(res, 401, 'Wrong authentication token'));
+    userData = 'Wrong authentication token'
   }
+  return userData;
 };
 
 const getUserDetails = async (payload: any) => {
@@ -37,12 +33,6 @@ const getUserDetails = async (payload: any) => {
       )
       .catch((err) => reject(err));
       });
-}
-
-const HttpException = (res:any, status_code:any, msg:any) => {
-  return res.status(status_code).send({
-    message: msg
-  })
 }
 
 export default authMiddleware;

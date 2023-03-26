@@ -1,8 +1,8 @@
 
 require('dotenv').config()
-export const MONGODB_URI = 'mongodb://127.0.0.1:27017/metapowerapp_dev'
+export const MONGODB_URI = 'mongodb+srv://gowtham:qs1D8eniGvovSr6j@cluster0.cvlnl3b.mongodb.net/chatapp'
 
-console.log(MONGODB_URI, '==========')
+console.log(MONGODB_URI, '=========')
 if (!MONGODB_URI) {
   console.log('No mongo connection string. Set MONGODB_URI environment variable.')
   process.exit(1)
