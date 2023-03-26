@@ -17,18 +17,18 @@ npm start
 
 ## Endpoint
 
-http://localhost:3000/ ---> For login
+http://localhost:3000/ ---> For login <br>
 http://localhost:3000/sign_up ----> For signup
 
 ## User 1
 
-john@gmail.com
-test@123
+username: john@gmail.com <br>
+password: test@123
 
 ## User 2
 
-gowtham@gmail.com
-test@123
+username: gowtham@gmail.com <br>
+password: test@123
 
 ## Technologies 
 
